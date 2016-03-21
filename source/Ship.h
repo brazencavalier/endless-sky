@@ -30,6 +30,7 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 class DataNode;
 class DataWriter;
 class Government;
+class OutfitGroup;
 class Phrase;
 class Planet;
 class Projectile;
@@ -46,7 +47,9 @@ class System;
 class Ship : public std::enable_shared_from_this<Ship> {
 public:
 	// These are all the possible category strings for ships.
-	static const std::vector<std::string> CATEGORIES;
+	static const std::vector<std::string> CATEGORIES;	
+	// A constructor that sets the initial age.
+	static Ship* MakeShip(const Ship& ship, int age);
 	
 public:
 	// Load data for a type of ship:
@@ -72,6 +75,8 @@ public:
 	const std::string &Description() const;
 	// Get this ship's cost.
 	int64_t Cost() const;
+	// Re-calculate the ship's cost.
+	int64_t UpdateCost();
 	// Get the licenses needed to buy or operate this ship.
 	const std::vector<std::string> &Licenses() const;
 	
@@ -240,11 +245,18 @@ public:
 	// Get the attributes of this ship chassis before any outfits were added.
 	const Outfit &BaseAttributes() const;
 	// Get the list of all outfits installed in this ship.
-	const std::map<const Outfit *, int> &Outfits() const;
+	const OutfitGroup &Outfits() const ;
+	// Get OutfitGroup pointer for transfer operations (shop).
+//	OutfitGroup *OutfitTransfer();
 	// Find out how many outfits of the given type this ship contains.
 	int OutfitCount(const Outfit *outfit) const;
-	// Add or remove outfits. (To remove, pass a negative number.)
-	void AddOutfit(const Outfit *outfit, int count);
+
+	// Add or remove outfits. (To add, pass a negative number.)
+	void AddOutfit(const Outfit *outfit, int count, int age);
+	void TransferOutfit(const Outfit *outfit, int count, OutfitGroup *to, bool removeOldestFirst, int ageToAdd);
+	void TransferOutfitToShip(const Outfit *outfit, int count, Ship &to, bool removeOldestFirst, int ageToAdd);
+	void TransferOutfitToCargo(const Outfit *outfit, int count, CargoHold &to, bool removeOldestFirst, int ageToAdd);
+	
 	
 	// Get the list of weapons.
 	Armament &GetArmament();
@@ -278,8 +290,14 @@ public:
 	std::shared_ptr<Ship> GetParent() const;
 	const std::vector<std::weak_ptr<const Ship>> &GetEscorts() const;
 	
+	// Increment the age of this ship and its outfits for the purpose 
+	// of used parts value calculations. 
+	void IncrementDate(int days = 1);
 	
 private:
+	// Update attributes, cargo space, hull after adding or removing an outfit. 
+	void FinishAddingOutfit(const Outfit *outfit, int count);
+	
 	// Add or remove a ship from this ship's list of escorts.
 	void AddEscort(const Ship &ship);
 	void RemoveEscort(const Ship &ship);
@@ -337,6 +355,7 @@ private:
 	
 	Command commands;
 	
+	
 	Personality personality;
 	const Phrase *hail = nullptr;
 	
@@ -344,8 +363,9 @@ private:
 	Outfit attributes;
 	Outfit baseAttributes;
 	const Outfit *explosionWeapon = nullptr;
-	std::map<const Outfit *, int> outfits;
+	OutfitGroup outfits;
 	CargoHold cargo;
+	int age;
 	
 	std::vector<Bay> droneBays;
 	std::vector<Bay> fighterBays;
@@ -354,7 +374,7 @@ private:
 	Armament armament;
 	// While loading, keep track of which outfits already have been equipped.
 	// (That is, they were specified as linked to a given gun or turret point.)
-	std::map<const Outfit *, int> equipped;
+	OutfitGroup equipped;
 	
 	// Various energy levels:
 	double shields = 0.;

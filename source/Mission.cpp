@@ -191,8 +191,10 @@ void Mission::Load(const DataNode &node)
 				{"accept", ACCEPT},
 				{"decline", DECLINE},
 				{"fail", FAIL},
+				{"defer", DEFER},
 				{"visit", VISIT},
-				{"stopover", STOPOVER}};
+				{"stopover", STOPOVER}
+			};
 			auto it = trigger.find(child.Token(1));
 			if(it != trigger.end())
 				actions[it->second].Load(child, name);
@@ -527,7 +529,7 @@ bool Mission::HasSpace(const PlayerInfo &player) const
 
 bool Mission::CanComplete(const PlayerInfo &player) const
 {
-	if(player.GetPlanet() != destination || !waypoints.empty() || !stopovers.empty())
+	if((destination && player.GetPlanet() != destination) || !waypoints.empty() || !stopovers.empty())
 		return false;
 	
 	if(!toComplete.Test(player.Conditions()))
@@ -829,8 +831,8 @@ Mission Mission::Instantiate(const PlayerInfo &player) const
 	{
 		if(player.GetPlanet())
 			result.destination = player.GetPlanet();
-		else
-			return result;
+		//else
+		//	return result; // Not an error condition.
 	}
 	
 	// If cargo is being carried, see if we are supposed to replace a generic
@@ -839,7 +841,7 @@ Mission Mission::Instantiate(const PlayerInfo &player) const
 	{
 		const Trade::Commodity *commodity = nullptr;
 		if(cargo == "random")
-			commodity = PickCommodity(*player.GetSystem(), *result.destination->GetSystem());
+			commodity = PickCommodity(*player.GetSystem(), result.destination ? *result.destination->GetSystem() : *player.GetSystem());
 		else
 		{
 			for(const Trade::Commodity &option : GameData::Commodities())
@@ -884,7 +886,7 @@ Mission Mission::Instantiate(const PlayerInfo &player) const
 	
 	// How far is it to the destination?
 	DistanceMap distance(player.GetSystem());
-	int jumps = distance.Distance(result.destination->GetSystem());
+	int jumps = result.destination ? distance.Distance(result.destination->GetSystem()) : 0;
 	int payload = result.cargoSize + 10 * result.passengers;
 	
 	// Set the deadline, if requested.
@@ -909,8 +911,8 @@ Mission Mission::Instantiate(const PlayerInfo &player) const
 		subs["<origin>"] = player.GetPlanet()->Name();
 	else if(player.BoardingShip())
 		subs["<origin>"] = player.BoardingShip()->Name();
-	subs["<planet>"] = result.destination ? result.destination->Name() : "";
-	subs["<system>"] = result.destination ? result.destination->GetSystem()->Name() : "";
+	subs["<planet>"] = result.destination ? result.destination->Name() : "any planet";
+	subs["<system>"] = result.destination ? result.destination->GetSystem()->Name() : "any";
 	subs["<destination>"] = subs["<planet>"] + " in the " + subs["<system>"] + " system";
 	subs["<date>"] = result.deadline.ToString();
 	subs["<day>"] = result.deadline.LongString();

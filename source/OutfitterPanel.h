@@ -15,6 +15,7 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
 #include "ShopPanel.h"
 
+#include "OutfitGroup.h"
 #include "Sale.h"
 
 #include <map>
@@ -49,12 +50,11 @@ protected:
 	virtual int DrawDetails(const Point &center) const override;
 	virtual bool CanBuy() const override;
 	virtual void Buy() override;
-	virtual void FailBuy() const override;
+	virtual void FailBuy() override;
 	virtual bool CanSell() const override;
 	virtual void Sell() override;
 	virtual void FailSell() const override;
 	virtual bool FlightCheck() override;
-	
 	
 private:
 	static bool ShipCanBuy(const Ship *ship, const Outfit *outfit);
@@ -66,13 +66,15 @@ private:
 	std::string LicenseName(const std::string &name) const;
 	void CheckRefill();
 	void Refill();
+	void BuyAsCargoPrompt(std::string message);
+	void BuyAsCargoCallback();
 	
 	
 private:
 	// This is how many of each outfit we have sold to this particular outfitter
 	// in this particular shopping session (so that you can buy back things this
 	// outfitter does not normally carry that you sold by accident).
-	std::map<const Outfit *, int> &available;
+	OutfitGroup &available;
 	bool checkedRefill = false;
 	
 	Sale<Outfit> outfitter;

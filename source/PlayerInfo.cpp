@@ -151,6 +151,23 @@ void PlayerInfo::Load(const string &path)
 			availableMissions.push_back(Mission());
 			availableMissions.back().Load(child);
 		}
+		else if (child.Token(0) == "used outfits")
+		{
+			for(const DataNode &grand : child)
+			{
+				int count = (grand.Size() >= 2) ? grand.Value(1) : 1;
+				int age = (grand.Size() >= 3) ? grand.Value(2) : OutfitGroup::UsedAge();
+				soldOutfits.AddOutfit(GameData::Outfits().Get(grand.Token(0)), count, age);
+			}
+		}
+		else if (child.Token(0) == "used ships")
+		{
+			for(const DataNode &grand : child)
+			{
+				int age = (grand.Size() >= 2) ? grand.Value(1) : OutfitGroup::UsedAge();
+				usedShips[GameData::Ships().Get(grand.Token(0))] = age;
+			}
+		}
 		else if(child.Token(0) == "conditions")
 		{
 			for(const DataNode &grand : child)
@@ -453,8 +470,13 @@ void PlayerInfo::IncrementDate()
 	// For accounting, keep track of the player's net worth. This is for
 	// calculation of yearly income to determine maximum mortgage amounts.
 	int64_t assets = 0;
-	for(const shared_ptr<Ship> &ship : ships)
+	for(const shared_ptr<Ship> &ship : ships) 
+	{
+		// Increment the age of the ship and its outfits.
+		ship->IncrementDate();
+		// Add the ship's value and the value of any cargo to net worth.
 		assets += ship->Cost() + ship->Cargo().Value(system);
+	}
 	
 	// Have the player pay salaries, mortgages, etc. and print a message that
 	// summarizes the payments that were made.
@@ -600,11 +622,12 @@ void PlayerInfo::AddShip(shared_ptr<Ship> &ship)
 
 
 // Buy a ship of the given model, and give it the given name.
-void PlayerInfo::BuyShip(const Ship *model, const string &name)
+void PlayerInfo::BuyShip(const Ship *model, const string &name, int age)
 {
 	if(model && accounts.Credits() >= model->Cost())
 	{
-		ships.push_back(shared_ptr<Ship>(new Ship(*model)));
+		auto newShip = Ship::MakeShip(*model, age);
+		ships.push_back(shared_ptr<Ship>(newShip));
 		ships.back()->SetName(name);
 		ships.back()->SetSystem(system);
 		ships.back()->SetPlanet(planet);
@@ -612,7 +635,7 @@ void PlayerInfo::BuyShip(const Ship *model, const string &name)
 		ships.back()->SetIsYours();
 		ships.back()->SetGovernment(GameData::PlayerGovernment());
 		
-		accounts.AddCredits(-model->Cost());
+		accounts.AddCredits(-newShip->Cost());
 		flagship.reset();
 	}
 }
@@ -624,11 +647,12 @@ void PlayerInfo::SellShip(const Ship *selected)
 {
 	for(auto it = ships.begin(); it != ships.end(); ++it)
 		if(it->get() == selected)
-		{
-			for(const auto &it : selected->Outfits())
-				soldOutfits[it.first] += it.second;
-			
+		{			
 			accounts.AddCredits(selected->Cost());
+			
+			for(const auto &it : selected->Outfits())
+				soldOutfits.AddOutfit(it.GetOutfit(), it.GetQuantity(), it.GetAge());
+
 			ships.erase(it);
 			flagship.reset();
 			return;
@@ -849,6 +873,33 @@ void PlayerInfo::Land(UI *ui)
 			ui->Push(new Dialog(message));
 	}
 	
+	// Add some random used outfits to the outfitter if there is one.
+	if(GetPlanet()->HasOutfitter() && soldOutfits.Empty())
+		for(const Outfit *outfit : GetPlanet()->Outfitter())
+		{
+			// Ammo/Maps/Licenses are never on sale.
+			if (outfit->Category() == "Ammunition" || outfit->Category() == "Special")
+				continue;
+			int added = 0;
+			while (Random::Int(100) < 40) //TODO: Variable used part generation chance and max.
+			{
+				soldOutfits.AddOutfit(outfit, 1, OutfitGroup::UsedAge());
+				if(++added >= 3)
+					break;
+			}
+		}
+	// Add a few random used ships for sale. 
+	if(GetPlanet()->HasShipyard() && usedShips.empty())
+	{
+		for(const Ship *ship : GetPlanet()->Shipyard())
+		{
+			if (Random::Int(100) < 25) //TODO: Variable used ship generation chance.
+				usedShips[ship] = OutfitGroup::UsedAge();
+		}
+		if(usedShips.empty()) // If no used ships are available, put in something so the map won't be empty.
+			usedShips[nullptr] = 0; 
+	}
+	
 	freshlyLoaded = false;
 	flagship.reset();
 }
@@ -870,7 +921,8 @@ void PlayerInfo::TakeOff(UI *ui)
 	availableJobs.clear();
 	availableMissions.clear();
 	doneMissions.clear();
-	soldOutfits.clear();
+	soldOutfits.Clear();
+	usedShips.clear();
 	
 	// Special persons who appeared last time you left the planet, can appear
 	// again.
@@ -1053,6 +1105,7 @@ void PlayerInfo::TakeOff(UI *ui)
 	int64_t income = 0;
 	int64_t totalBasis = 0;
 	if(sold)
+	{
 		for(const auto &commodity : cargo.Commodities())
 		{
 			if(!commodity.second)
@@ -1074,6 +1127,10 @@ void PlayerInfo::TakeOff(UI *ui)
 			it->second -= basis;
 			totalBasis += basis;
 		}
+		// Also sell any outfits that had to be left behind because they didn't fit.
+		income += cargo.Outfits().GetTotalCost();
+	}
+		
 	accounts.AddCredits(income);
 	cargo.Clear();
 	if(sold)
@@ -1240,7 +1297,7 @@ void PlayerInfo::MissionCallback(int response)
 	
 	Mission &mission = missionList.front();
 	
-	shouldLaunch = (response == Conversation::LAUNCH || response == Conversation::FLEE);
+	shouldLaunch = Conversation::LeaveImmediately(response);
 	if(response == Conversation::ACCEPT || response == Conversation::LAUNCH)
 	{
 		bool shouldAutosave = mission.RecommendsAutosave();
@@ -1252,12 +1309,12 @@ void PlayerInfo::MissionCallback(int response)
 		if(shouldAutosave)
 			Autosave();
 	}
-	else if(response == Conversation::DECLINE)
+	else if(response == Conversation::DECLINE || response == Conversation::FLEE)
 	{
 		mission.Do(Mission::DECLINE, *this);
 		missionList.pop_front();
 	}
-	else if(response == Conversation::DEFER)
+	else if(response == Conversation::DEFER || response == Conversation::DEPART)
 	{
 		mission.Do(Mission::DEFER, *this);
 		missionList.pop_front();
@@ -1483,8 +1540,10 @@ const Outfit *PlayerInfo::SelectedWeapon() const
 // Cycle through all available secondary weapons.
 void PlayerInfo::SelectNext()
 {
-	if(!flagship || flagship->Outfits().empty())
+	if(!flagship || flagship->Outfits().Empty())
 		return;
+	
+	// TODO: Need to group weapons by type, not type/age.
 	
 	// Start with the currently selected weapon, if any.
 	auto it = flagship->Outfits().find(selectedWeapon);
@@ -1495,9 +1554,9 @@ void PlayerInfo::SelectNext()
 	
 	// Find the next secondary weapon.
 	for( ; it != flagship->Outfits().end(); ++it)
-		if(it->first->Icon())
+		if(it.GetOutfit() != selectedWeapon && it.GetOutfit()->Icon())
 		{
-			selectedWeapon = it->first;
+			selectedWeapon = it.GetOutfit();
 			return;
 		}
 	selectedWeapon = nullptr;
@@ -1507,9 +1566,17 @@ void PlayerInfo::SelectNext()
 
 // Keep track of any outfits that you have sold since landing. These will be
 // available to buy back until you take off.
-map<const Outfit *, int> &PlayerInfo::SoldOutfits()
+OutfitGroup &PlayerInfo::SoldOutfits()
 {
 	return soldOutfits;
+}
+
+
+
+// Keep track of used ships available today on this planet, so it doesn't change until after you take off again.
+PlayerInfo::UsedShipMap &PlayerInfo::UsedShips()
+{
+	return usedShips;
 }
 
 
@@ -1675,6 +1742,30 @@ void PlayerInfo::Save(const string &path) const
 		mission.Save(out, "available job");
 	for(const Mission &mission : availableMissions)
 		mission.Save(out, "available mission");
+	
+	// Save which used outfits are currently available.
+	out.Write("used outfits");
+	out.BeginChild();
+	{
+		for(const auto &it : soldOutfits)
+			if(it.GetOutfit() && it.GetQuantity())
+			{
+				if(it.GetQuantity() == 1 && !it.GetAge())
+					out.Write(it.GetOutfit()->Name());
+				else
+					out.Write(it.GetOutfit()->Name(), it.GetQuantity(), it.GetAge());
+			}
+	}
+	out.EndChild();
+	// Save which used ships are currently available.
+	out.Write("used ships");
+	out.BeginChild();
+	{
+		for(const auto &it : usedShips)
+			if(it.first && it.second > 0)
+				out.Write(it.first->ModelName(), it.second);
+	}
+	out.EndChild();
 	
 	// Save any "condition" flags that are set.
 	if(!conditions.empty())

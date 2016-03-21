@@ -217,7 +217,7 @@ bool InfoPanel::KeyDown(SDL_Keycode key, Uint16 mod, const Command &command)
 		if(CanDump())
 		{
 			int amount = (*shipIt)->Cargo().Get(selectedCommodity);
-			int plunderAmount = (*shipIt)->Cargo().Get(selectedPlunder);
+			int plunderAmount = (*shipIt)->Cargo().GetOutfitCount(selectedPlunder);
 			if(amount)
 			{
 				GetUI()->Push(new Dialog(this, &InfoPanel::Dump,
@@ -406,7 +406,7 @@ void InfoPanel::UpdateInfo()
 	
 	outfits.clear();
 	for(const auto &it : ship.Outfits())
-		outfits[it.first->Category()].push_back(it.first);
+		outfits[it.GetOutfit()->Category()].push_back(it.GetOutfit());
 }
 
 
@@ -556,13 +556,19 @@ void InfoPanel::DrawShip() const
 	Point pos(-240., -270.);
 	for(const auto &it : outfits)
 	{
+		
 		int height = 20 * (it.second.size() + 1);
 		if(pos.X() == -240. && pos.Y() + height > 20.)
 			pos = Point(pos.X() + 250., -270.);
 		
 		font.Draw(it.first, pos, bright);
+		const Outfit* lastOutfit = nullptr; //Condense same-type outfits in list.
 		for(const Outfit *outfit : it.second)
 		{
+			if (outfit == lastOutfit)
+				continue;
+			lastOutfit = outfit;
+
 			pos.Y() += 20.;
 			font.Draw(outfit->Name(), pos, dim);
 			string number = to_string(ship.OutfitCount(outfit));
@@ -608,19 +614,21 @@ void InfoPanel::DrawShip() const
 	}
 	if(cargo.HasOutfits() && pos.Y() < 220.)
 	{
+		const Outfit* lastOutfit = nullptr; //Condense same-type outfits in list.
 		for(const auto &it : cargo.Outfits())
 		{
-			if(!it.second)
+			if(!it.GetQuantity() || it.GetOutfit() == lastOutfit)
 				continue;
+			lastOutfit = it.GetOutfit();
 			
 			Point center = pos + .5 * size - Point(0., (20 - font.Height()) * .5);
-			plunderZones.emplace_back(center, size, it.first);
-			if(it.first == selectedPlunder)
+			plunderZones.emplace_back(center, size, it.GetOutfit());
+			if(it.GetOutfit() == selectedPlunder)
 				FillShader::Fill(center, size + Point(10., 0.), backColor);
 			
-			string number = to_string(it.second);
+			string number = to_string(cargo.Outfits().GetTotalCount(it.GetOutfit()));
 			Point numberPos(pos.X() + size.X() - font.Width(number), pos.Y());
-			font.Draw(it.first->Name(), pos, dim);
+			font.Draw(it.GetOutfit()->Name() + "(" + it.GetCostRatioString() + ")", pos, dim);
 			font.Draw(number, numberPos, bright);
 			pos.Y() += size.Y();
 			
@@ -747,7 +755,7 @@ bool InfoPanel::CanDump() const
 		return false;
 	
 	CargoHold &cargo = (*shipIt)->Cargo();
-	return (selectedPlunder && cargo.Get(selectedPlunder) > 0) || cargo.CommoditiesSize();
+	return (selectedPlunder && cargo.GetOutfitCount(selectedPlunder) > 0) || cargo.CommoditiesSize();
 }
 
 
@@ -760,7 +768,7 @@ void InfoPanel::Dump()
 	CargoHold &cargo = (*shipIt)->Cargo();
 	int originalCargo = cargo.Used();
 	int amount = cargo.Get(selectedCommodity);
-	int plunderAmount = cargo.Get(selectedPlunder);
+	int plunderAmount = cargo.GetOutfitCount(selectedPlunder);
 	int64_t loss = 0;
 	if(amount)
 	{
@@ -797,7 +805,7 @@ void InfoPanel::DumpPlunder(int count)
 {
 	CargoHold &cargo = (*shipIt)->Cargo();
 	int originalCargo = cargo.Used();
-	count = min(count, cargo.Get(selectedPlunder));
+	count = min(count, cargo.GetOutfitCount(selectedPlunder));
 	if(count > 0)
 	{
 		cargo.Transfer(selectedPlunder, count);

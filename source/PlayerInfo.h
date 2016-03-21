@@ -30,6 +30,7 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 class DataNode;
 class Government;
 class Outfit;
+class OutfitGroup;
 class Person;
 class Planet;
 class Ship;
@@ -46,6 +47,9 @@ class UI;
 // has made to the universe, what jobs are being offered to them right now,
 // and what their current travel plan is, if any.
 class PlayerInfo {
+public:
+	typedef std::map<const Ship*, int> UsedShipMap;
+	
 public:
 	PlayerInfo() = default;
 	
@@ -115,7 +119,7 @@ public:
 	// Add a captured ship to your fleet.
 	void AddShip(std::shared_ptr<Ship> &ship);
 	// Buy or sell a ship.
-	void BuyShip(const Ship *model, const std::string &name);
+	void BuyShip(const Ship *model, const std::string &name, int age);
 	void SellShip(const Ship *selected);
 	void ParkShip(const Ship *selected, bool isParked);
 	void RenameShip(const Ship *selected, const std::string &name);
@@ -184,8 +188,9 @@ public:
 	
 	// Keep track of any outfits that you have sold since landing. These will be
 	// available to buy back until you take off.
-	std::map<const Outfit *, int> &SoldOutfits();
-	
+	OutfitGroup &SoldOutfits();
+	// Keep track of used ships available today on this planet, so it doesn't change until after you take off again.
+	UsedShipMap &UsedShips();
 	
 private:
 	// Don't anyone else to copy this class, because pointers won't get
@@ -237,7 +242,8 @@ private:
 	
 	const Outfit *selectedWeapon = nullptr;
 	
-	std::map<const Outfit *, int> soldOutfits;
+	OutfitGroup soldOutfits;
+	UsedShipMap usedShips;
 	
 	// Changes that this PlayerInfo wants to make to the global galaxy state:
 	std::vector<std::pair<const Government *, double>> reputationChanges;

@@ -13,6 +13,8 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 #ifndef CARGO_HOLD_H_
 #define CARGO_HOLD_H_
 
+#include "OutfitGroup.h"
+
 #include <map>
 #include <string>
 
@@ -60,13 +62,13 @@ public:
 	// Normal cargo:
 	int Get(const std::string &commodity) const;
 	// Spare outfits:
-	int Get(const Outfit *outfit) const;
+	int GetOutfitCount(const Outfit *outfit) const;
 	// Mission cargo:
 	int Get(const Mission *mission) const;
 	int GetPassengers(const Mission *mission) const;
 	
 	const std::map<std::string, int> &Commodities() const;
-	const std::map<const Outfit *, int> &Outfits() const;
+	const OutfitGroup &Outfits() const;
 	// Note: some missions may have cargo that takes up 0 space, but should
 	// still show up on the cargo listing.
 	const std::map<const Mission *, int> &MissionCargo() const;
@@ -76,7 +78,8 @@ public:
 	// the commodity to "disappear" or, if the "amount" is negative, to have an
 	// unlimited supply. The return value is the actual number transferred.
 	int Transfer(const std::string &commodity, int amount, CargoHold *to = nullptr);
-	int Transfer(const Outfit *outfit, int amount, CargoHold *to = nullptr);
+	int Transfer(const Outfit *outfit, int amount, CargoHold *to = nullptr, bool oldestFirst = true);
+	int Transfer(const Outfit *outfit, int amount, OutfitGroup *to, bool oldestFirst, int defaultAge);
 	int Transfer(const Mission *mission, int amount, CargoHold *to = nullptr);
 	int TransferPassengers(const Mission *mission, int amount, CargoHold *to = nullptr);
 	// Transfer as much as the given cargo hold has capacity for. The priority is
@@ -99,7 +102,7 @@ private:
 	int size = -1;
 	int bunks = -1;
 	std::map<std::string, int> commodities;
-	std::map<const Outfit *, int> outfits;
+	OutfitGroup outfits;
 	std::map<const Mission *, int> missionCargo;
 	std::map<const Mission *, int> passengers;
 };
