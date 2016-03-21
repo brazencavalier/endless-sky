@@ -16,6 +16,7 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 #include "DataNode.h"
 #include "Effect.h"
 #include "GameData.h"
+#include "GlobalAttributes.h"
 #include "SpriteSet.h"
 
 #include <cmath>
@@ -115,7 +116,7 @@ const Sprite *Outfit::Thumbnail() const
 double Outfit::Get(const string &attribute) const
 {
 	auto it = attributes.find(attribute);
-	return (it == attributes.end()) ? 0. : it->second;
+	return (it == attributes.end()) ? GameData::Globals().Get("outfits")->Get(attribute) : it->second;
 }
 
 

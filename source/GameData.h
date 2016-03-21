@@ -29,6 +29,7 @@ class Effect;
 class Fleet;
 class Galaxy;
 class GameEvent;
+class GlobalAttributes;
 class Government;
 class Interface;
 class Mission;
@@ -81,6 +82,7 @@ public:
 	static const Set<GameEvent> &Events();
 	static const Set<Fleet> &Fleets();
 	static const Set<Galaxy> &Galaxies();
+	static const Set<GlobalAttributes> &Globals();
 	static const Set<Government> &Governments();
 	static const Set<Interface> &Interfaces();
 	static const Set<Mission> &Missions();

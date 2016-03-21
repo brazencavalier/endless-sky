@@ -26,6 +26,7 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 #include "FontSet.h"
 #include "Galaxy.h"
 #include "GameEvent.h"
+#include "GlobalAttributes.h"
 #include "Government.h"
 #include "Interface.h"
 #include "LineShader.h"
@@ -66,6 +67,7 @@ namespace {
 	Set<GameEvent> events;
 	Set<Fleet> fleets;
 	Set<Galaxy> galaxies;
+	Set<GlobalAttributes> globals;
 	Set<Government> governments;
 	Set<Interface> interfaces;
 	Set<Mission> missions;
@@ -481,6 +483,13 @@ const Set<Galaxy> &GameData::Galaxies()
 
 
 
+const Set<GlobalAttributes> &GameData::Globals()
+{
+	return globals;
+}
+
+
+
 const Set<Government> &GameData::Governments()
 {
 	return governments;
@@ -635,6 +644,8 @@ void GameData::LoadFile(const string &path, bool debugMode)
 			fleets.Get(node.Token(1))->Load(node);
 		else if(key == "galaxy" && node.Size() >= 2)
 			galaxies.Get(node.Token(1))->Load(node);
+		else if(key == "globals" && node.Size() >= 2)
+			globals.Get(node.Token(1))->Load(node);
 		else if(key == "government" && node.Size() >= 2)
 			governments.Get(node.Token(1))->Load(node);
 		else if(key == "interface" && node.Size() >= 2)

@@ -110,7 +110,7 @@ void CargoHold::Save(DataWriter &out) const
 			}
 			firstOutfit = false;
 			
-			out.Write(it.GetOutfit()->Name(), it.GetQuantity(), it.GetAge());
+			out.Write(it.GetOutfit()->Name(), it.GetQuantity(), it.GetWear());
 		}
 	if(!firstOutfit)
 		out.EndChild();

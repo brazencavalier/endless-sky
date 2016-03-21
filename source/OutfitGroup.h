@@ -23,36 +23,43 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
 class DataNode;
 class Effect;
+class Ship;
 class Sound;
 class Sprite;
 class OutfitGroup;
 
 
-// Class representing a group of outfits that is installed in a ship 
-// or available in a shop. It encapsulates and manages a map of sets which 
-// represents not only which outfits are in the group and the age of each 
-// outfit in the group for purpose of depreciation. 
-// The Map is keyed by pointer to the outfit in question and the list 
-// contains the number of outfits of each age, sorted by age, so that 
-// it is easy to buy lowest price first or sell highest price first.  
+
+// Class representing a group of outfits that is installed in a ship
+// or available in a shop. It encapsulates and manages a map of sets which
+// represents not only which outfits are in the group and the age of each
+// outfit in the group for purpose of depreciation.
+// The Map is keyed by pointer to the outfit in question and the list
+// contains the number of outfits of each age, sorted by age, so that
+// it is easy to buy lowest price first or sell highest price first.
 // Replaces std::map<const Outfit *, int> in many places.
-class OutfitGroup {
+class OutfitGroup
+{
 private:
-	typedef std::map<int, int> InnerMap;
-	typedef std::map<const Outfit*, InnerMap> OuterMap;
+	typedef std::map<double, int> InnerMap;
+	typedef std::map<const Outfit *, InnerMap> OuterMap;
 	
 public:
-	static int64_t CostFunction(const Outfit *outfit, int age, double minValue = 0.5, double lossPerDay = 0.0025);
-	static double CostFunction(int age, double minValue = 0.5, double lossPerDay = 0.0025);
-	static int UsedAge(double minValue = 0.5, double lossPerDay = 0.0025);
-	static int PlunderAge(double minValue = 0.5, double lossPerDay = 0.0025);
-
+	static int64_t CostFunction(const Outfit *outfit, double wear);
+	static double CostFunction(double wear);
+	static double UsedWear(const Outfit *outfit);
+	static int UsedAge(const Ship *ship);
+	static int PlunderAge(const Ship *ship);
+	
 public:
-	OutfitGroup() { outfits.empty(); };
+	OutfitGroup()
+	{
+		outfits.empty();
+	};
 	
 	void Clear();
 	bool Empty() const;
-	const std::map<int, int> *Find(const Outfit *outfit) const;
+	const std::map<double, int> *Find(const Outfit *outfit) const;
 	
 	// Given attribute summed over all outfits in group.
 	double GetTotalAttribute(std::string attribute) const;
@@ -62,40 +69,42 @@ public:
 	int64_t GetTotalCost(const Outfit *outfit) const;
 	// How many outfits of a given type.
 	int GetTotalCount(const Outfit *outfit) const;
-	// Cost of given number of outfits of a given type, either oldest or newest. 
-	int64_t GetCost(const Outfit* outfit, int count, bool oldestFirst) const;
+	// Cost of given number of outfits of a given type, either most worn or least worn.
+	int64_t GetCost(const Outfit *outfit, int count, bool mostWornFirst) const;
 	
 	// Add outfits.
-	int AddOutfit(const Outfit* outfit, int count, int age);
+	int AddOutfit(const Outfit *outfit, int count, double wear);
 	
-	// Remove outfits, either oldest first or newest first. Return number removed.
-	int RemoveOutfit(const Outfit* outfit, int count, bool oldestFirst, OutfitGroup* to = nullptr);
+	// Remove outfits, either most worn first or least worn first. Return number removed.
+	int RemoveOutfit(const Outfit *outfit, int count, bool mostWornFirst, OutfitGroup *to = nullptr);
 	
-	int TransferOutfits(const Outfit *outfit, int count, OutfitGroup* to, bool oldestFirst, int defaultAge = 0);
+	int TransferOutfits(const Outfit *outfit, int count, OutfitGroup *to, bool mostWornFirst, int defaultWear = 0.);
 	
 	void IncrementDate(int days = 1);
+	void SetVariableWear(int meanAge);
 	
-	// Iterator used to let OutfitGroup be used in for loops just like 
-	// it was a map<const Outfit *, int>.  
-	class iterator {
+	// Iterator used to let OutfitGroup be used in for loops just like
+	// it was a map<const Outfit *, int>.
+	class iterator
+	{
 	public:
-		iterator (const OutfitGroup* group, bool begin);
-		iterator (const OutfitGroup* group, const Outfit* outfit);
+		iterator(const OutfitGroup *group, bool begin);
+		iterator(const OutfitGroup *group, const Outfit *outfit);
 		
 		// Iteration operators
-		bool operator!= (const OutfitGroup::iterator& other) const;
-		bool operator== (const OutfitGroup::iterator& other) const;
-		iterator operator* () const;
-		const OutfitGroup::iterator& operator++ ();
-				
-		// Getters 
-		const Outfit* GetOutfit() const;
-		int GetAge() const;
+		bool operator!=(const OutfitGroup::iterator &other) const;
+		bool operator==(const OutfitGroup::iterator &other) const;
+		iterator operator*() const;
+		const OutfitGroup::iterator &operator++();
+		
+		// Getters
+		const Outfit *GetOutfit() const;
+		double GetWear() const;
 		int GetQuantity() const;
 		int64_t GetTotalCost() const;
 		double GetCostRatio()const;
 		std::string GetCostRatioString() const;
-
+		
 		
 	private:
 		const OutfitGroup *myGroup;
@@ -103,7 +112,7 @@ public:
 		InnerMap::const_iterator innerIter;
 		bool isEnd;
 	};
-
+	
 	
 	// Enable use in for loops.
 	OutfitGroup::iterator begin() const;
@@ -114,7 +123,7 @@ public:
 private:
 	// Map of outfit to map of ages to outfits of that type of that age.
 	OuterMap outfits;
-
+	
 };
 
 

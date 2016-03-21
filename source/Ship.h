@@ -48,8 +48,8 @@ class Ship : public std::enable_shared_from_this<Ship> {
 public:
 	// These are all the possible category strings for ships.
 	static const std::vector<std::string> CATEGORIES;	
-	// A constructor that sets the initial age.
-	static Ship* MakeShip(const Ship& ship, int age);
+	// A constructor that sets the initial base age.
+	static Ship *MakeShip(const Ship &ship, int age);
 	
 public:
 	// Load data for a type of ship:
@@ -252,10 +252,10 @@ public:
 	int OutfitCount(const Outfit *outfit) const;
 
 	// Add or remove outfits. (To add, pass a negative number.)
-	void AddOutfit(const Outfit *outfit, int count, int age);
-	void TransferOutfit(const Outfit *outfit, int count, OutfitGroup *to, bool removeOldestFirst, int ageToAdd);
-	void TransferOutfitToShip(const Outfit *outfit, int count, Ship &to, bool removeOldestFirst, int ageToAdd);
-	void TransferOutfitToCargo(const Outfit *outfit, int count, CargoHold &to, bool removeOldestFirst, int ageToAdd);
+	void AddOutfit(const Outfit *outfit, int count, double wear);
+	void TransferOutfit(const Outfit *outfit, int count, OutfitGroup *to, bool removeOldestFirst, double wearToAdd);
+	void TransferOutfitToShip(const Outfit *outfit, int count, Ship &to, bool removeOldestFirst, double wearToAdd);
+	void TransferOutfitToCargo(const Outfit *outfit, int count, CargoHold &to, bool removeOldestFirst, double wearToAdd);
 	
 	
 	// Get the list of weapons.
@@ -291,7 +291,7 @@ public:
 	const std::vector<std::weak_ptr<const Ship>> &GetEscorts() const;
 	
 	// Increment the age of this ship and its outfits for the purpose 
-	// of used parts value calculations. 
+	// of wear calculations. 
 	void IncrementDate(int days = 1);
 	
 private:
@@ -366,6 +366,7 @@ private:
 	OutfitGroup outfits;
 	CargoHold cargo;
 	int age;
+	double wear;
 	
 	std::vector<Bay> droneBays;
 	std::vector<Bay> fighterBays;

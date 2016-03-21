@@ -13,6 +13,7 @@
 				<Option compiler="gcc" />
 				<Compiler>
 					<Add option="-g" />
+					<Add directory="source" />
 				</Compiler>
 			</Target>
 			<Target title="Release">
@@ -23,6 +24,7 @@
 				<Compiler>
 					<Add option="-O2" />
 					<Add option="-msse3" />
+					<Add directory="source" />
 				</Compiler>
 				<Linker>
 					<Add option="-s" />
@@ -39,6 +41,7 @@
 				<Compiler>
 					<Add option="-O2" />
 					<Add directory="C:/dev32/include" />
+					<Add directory="source" />
 				</Compiler>
 				<Linker>
 					<Add option="-Wl,--subsystem,windows" />
@@ -150,6 +153,8 @@
 		<Unit filename="source/GameData.h" />
 		<Unit filename="source/GameEvent.cpp" />
 		<Unit filename="source/GameEvent.h" />
+		<Unit filename="source/GlobalAttributes.cpp" />
+		<Unit filename="source/GlobalAttributes.h" />
 		<Unit filename="source/Government.cpp" />
 		<Unit filename="source/Government.h" />
 		<Unit filename="source/HailPanel.cpp" />
@@ -202,6 +207,8 @@
 		<Unit filename="source/NPC.h" />
 		<Unit filename="source/Outfit.cpp" />
 		<Unit filename="source/Outfit.h" />
+		<Unit filename="source/OutfitGroup.cpp" />
+		<Unit filename="source/OutfitGroup.h" />
 		<Unit filename="source/OutfitInfoDisplay.cpp" />
 		<Unit filename="source/OutfitInfoDisplay.h" />
 		<Unit filename="source/OutfitterPanel.cpp" />
